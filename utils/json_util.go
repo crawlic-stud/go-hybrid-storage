@@ -13,6 +13,15 @@ func GetJsonData(data any) []byte {
 	return jsonData
 }
 
+func ReadJsonData[T any](data []byte) T {
+	var item T
+	err := json.Unmarshal(data, &item)
+	if err != nil {
+		panic("Can't read item. This should never happen!")
+	}
+	return item
+}
+
 func WriteResponseStatusCode(data any, statusCode int, writer http.ResponseWriter) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(statusCode)

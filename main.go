@@ -3,19 +3,37 @@ package main
 import (
 	"fmt"
 	"hybrid-storage/handlers"
-	"hybrid-storage/utils"
+	fileHandlers "hybrid-storage/handlers/file_handlers"
 	"net/http"
+
+	"github.com/rs/cors"
 )
 
 func main() {
-	fmt.Println("Starting server on localhost:8000")
+	fmt.Println("Starting server on http://localhost:8000")
 
-	http.HandleFunc("/", utils.HttpHandler(handlers.Root, "GET"))
-	http.HandleFunc("/files", utils.HttpHandler(handlers.UploadFile, "POST"))
+	handler := http.NewServeMux()
 
-	// mux handlers
-	mux := http.NewServeMux()
-	mux.HandleFunc("/files/{id}", utils.HttpHandler(handlers.GetFilesHandler, "GET"))
+	handler.HandleFunc("GET /", handlers.Root)
 
-	http.ListenAndServe(":8000", nil)
+	// file handlers
+	handler.HandleFunc("POST /files", fileHandlers.UploadFile)
+	handler.HandleFunc("GET /files", fileHandlers.GetAllFilesHandler)
+	handler.HandleFunc("GET /files/{id}", fileHandlers.GetFileHandler)
+	handler.HandleFunc("GET /files/{id}/metadata", fileHandlers.GetMetadataHandler)
+	handler.HandleFunc("DELETE /files/{id}", fileHandlers.DeleteFileHandler)
+
+	corsConfig := cors.New(cors.Options{
+		AllowedHeaders:   []string{"Origin", "Authorization", "Accept", "Content-Type"},
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "PUT"},
+		AllowCredentials: true,
+	})
+
+	corsHandler := corsConfig.Handler(handler)
+
+	http.ListenAndServe(
+		":8000",
+		corsHandler,
+	)
 }

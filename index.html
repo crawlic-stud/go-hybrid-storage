@@ -4,12 +4,143 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
+    <style>
+      li {
+        color: #000;
+        background-color: white;
+        padding: 5px;
+        width: fit-content;
+        display: flex;
+      }
+      li:hover {
+        background-color: #d4d4d4;
+        cursor: pointer;
+        text-decoration-line: underline;
+      }
+      button {
+        border: none;
+        padding: 5px;
+        margin: 5px;
+        border-radius: 5px;
+      }
+
+      .btn-container {
+        position: absolute;
+        right: 50px;
+      }
+
+      .delete {
+        background-color: rgb(236, 140, 140);
+      }
+      .delete:hover {
+        background-color: rgb(192, 46, 46);
+        color: white;
+        cursor: pointer;
+      }
+      .download {
+        background-color: rgb(184, 245, 184);
+      }
+      .download:hover {
+        background-color: rgb(43, 121, 43);
+        color: white;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
-    <form method="post" action="http://localhost:8000/files" enctype=multipart/form-data>
+    <form>
       <label>Отправить файл:</label>
-      <input type="file" id="file" name="file" />
-      <button type="submit">Отправить</button>
+      <input required type="file" id="file" name="file" />
+      <button type="button" onclick="uploadFile()">Отправить</button>
     </form>
+    <br />
+    <label>Файлы:</label>
+    <div id="files"></div>
+
+    <script>
+      var baseUrl = "";
+
+      displayFiles();
+
+      function getFilename(data) {
+        var dateCreate = new Date(data.createdAt * 1000);
+        return (
+          data.filename +
+          " (" +
+          dateCreate.toLocaleDateString() +
+          " " +
+          dateCreate.toLocaleTimeString() +
+          ")"
+        );
+      }
+
+      function displayFiles() {
+        console.log("displayFiles");
+
+        fetch(baseUrl + "/files")
+          .then((response) => response.json())
+          .then((data) => {
+            data = data.items;
+            data.sort(function (a, b) {
+              return b.createdAt - a.createdAt;
+            });
+            console.log(data);
+
+            var ul = document.createElement("ul");
+
+            for (var i = 0; i < data.length; i++) {
+              (function (file) {
+                var li = document.createElement("li");
+                li.id = file.fileId;
+                li.innerHTML = getFilename(file);
+
+                var btnDelete = document.createElement("button");
+                btnDelete.className = "delete";
+                btnDelete.innerHTML = "Удалить";
+
+                btnDelete.addEventListener("click", function () {
+                  fetch(baseUrl + "/files/" + file.fileId, {
+                    method: "DELETE",
+                  }).then((response) => displayFiles());
+                });
+
+                var btnDownload = document.createElement("button");
+                btnDownload.className = "download";
+                btnDownload.innerHTML = "Скачать";
+
+                btnDownload.addEventListener("click", function () {
+                  window.location.href = baseUrl + "/files/" + file.fileId;
+                });
+
+                var btnContainer = document.createElement("div");
+                btnContainer.className = "btn-container";
+
+                btnContainer.appendChild(btnDownload);
+                btnContainer.appendChild(btnDelete);
+                li.appendChild(btnContainer);
+                ul.appendChild(li);
+              })(data[i]); // Pass the current item to an IIFE
+            }
+
+            var filesElement = document.getElementById("files");
+            filesElement.innerHTML = ""; // Clear existing content
+            filesElement.appendChild(ul);
+          });
+      }
+
+      function uploadFile() {
+        var file = document.getElementById("file").files[0];
+        var formData = new FormData();
+        formData.append("file", file);
+        fetch(baseUrl + "/files", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            displayFiles();
+          });
+      }
+    </script>
   </body>
 </html>
