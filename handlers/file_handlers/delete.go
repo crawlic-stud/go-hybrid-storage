@@ -10,9 +10,6 @@ import (
 )
 
 func DeleteFileHandler(writer http.ResponseWriter, request *http.Request) {
-
-	fmt.Printf("DeleteFileHandler method=%s\n", request.Method)
-
 	fileId, err := GetFileId(request)
 
 	if err != nil {
