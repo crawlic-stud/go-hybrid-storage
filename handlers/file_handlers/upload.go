@@ -15,12 +15,26 @@ import (
 
 const PERMISSIONS = 0755
 
+// file size limit
+const MB = 1024 * 1024
+const MAX_FILE_SIZE_MB = 5
+const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * MB
+
 func UploadFile(writer http.ResponseWriter, request *http.Request) {
+	request.Body = http.MaxBytesReader(writer, request.Body, MAX_FILE_SIZE)
+
+	err := request.ParseMultipartForm(MAX_FILE_SIZE)
+	if err != nil {
+		utils.WriteResponseStatusCode(models.Error{Detail: fmt.Sprintf("File too large, limit is %v MB", MAX_FILE_SIZE_MB)}, http.StatusBadRequest, writer)
+		return
+	}
+
 	file, header, err := request.FormFile("file")
 	if err != nil {
 		utils.WriteResponseStatusCode(models.Error{Detail: "Error reading file"}, http.StatusBadRequest, writer)
 		return
 	}
+
 	defer file.Close()
 
 	fileId := uuid.New().String()

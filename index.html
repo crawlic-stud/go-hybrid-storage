@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
     <style>
-      li {
+      .file {
         color: #000;
         background-color: white;
         padding: 5px;
         width: fit-content;
         display: flex;
       }
-      li:hover {
+      .file:hover {
         background-color: #d4d4d4;
         cursor: pointer;
         text-decoration-line: underline;
@@ -45,12 +45,18 @@
         color: white;
         cursor: pointer;
       }
+      .hide {
+        display: none;
+      }
+      .metadata {
+        font-size: smaller;
+      }
     </style>
   </head>
   <body>
     <form>
       <label>Отправить файл:</label>
-      <input required type="file" id="file" name="file" />
+      <input required size="100" type="file" id="file" name="file" />
       <button type="button" onclick="uploadFile()">Отправить</button>
     </form>
     <br />
@@ -74,6 +80,18 @@
         );
       }
 
+      function getFileMetadataElement(data) {
+        var list = document.createElement("ul");
+        for (const [key, value] of Object.entries(data)) {
+          var li = document.createElement("li");
+          li.innerHTML = `${key}: ${value}`;
+          list.appendChild(li);
+        }
+        list.className = "metadata";
+        list.classList.toggle("hide");
+        return list;
+      }
+
       function displayFiles() {
         console.log("displayFiles");
 
@@ -93,6 +111,7 @@
                 var li = document.createElement("li");
                 li.id = file.fileId;
                 li.innerHTML = getFilename(file);
+                li.className = "file";
 
                 var btnDelete = document.createElement("button");
                 btnDelete.className = "delete";
@@ -118,7 +137,13 @@
                 btnContainer.appendChild(btnDownload);
                 btnContainer.appendChild(btnDelete);
                 li.appendChild(btnContainer);
+                li.appendChild(getFileMetadataElement(file));
                 ul.appendChild(li);
+
+                li.onclick = function () {
+                  var metadata = li.children[li.children.length - 1];
+                  metadata.classList.toggle("hide");
+                };
               })(data[i]); // Pass the current item to an IIFE
             }
 
@@ -136,8 +161,13 @@
           method: "POST",
           body: formData,
         })
-          .then((response) => response.json())
+          .then((response) => {
+            return response.json();
+          })
           .then((data) => {
+            if (data.detail) {
+              alert(data.detail);
+            }
             displayFiles();
           });
       }
