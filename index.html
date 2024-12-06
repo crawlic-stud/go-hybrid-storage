@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
     <style>
+      body {
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+      }
       .file {
         color: #000;
         background-color: white;
@@ -61,10 +64,46 @@
     </form>
     <br />
     <label>Файлы:</label>
+    <button id="pagePrevious" onclick="goToPreviousPage()"><</button>
+    <button id="pageNumber"></button>
+    <button id="pageNext" onclick="goToNextPage()">></button>
+    <label id="pageSize"></label>
     <div id="files"></div>
 
     <script>
       var baseUrl = "";
+      var currentPage = 1;
+      var isNextPage = false;
+      var isPreviousPage = false;
+      var pageSize = 20;
+
+      function resetPaginator() {
+        document.getElementById("pageNumber").innerHTML = currentPage;
+        // document.getElementById("pageSize").innerHTML = `${pageSize} файлов`;
+        var pagePrevious = document.getElementById("pagePrevious");
+        var pageNext = document.getElementById("pageNext");
+        pagePrevious.disabled = null;
+        pageNext.disabled = null;
+
+        isPreviousPage = currentPage > 1;
+
+        if (!isPreviousPage) {
+          pagePrevious.disabled = "disabled";
+        }
+        if (!isNextPage) {
+          pageNext.disabled = "disabled";
+        }
+      }
+
+      function goToNextPage() {
+        currentPage++;
+        displayFiles();
+      }
+
+      function goToPreviousPage() {
+        currentPage--;
+        displayFiles();
+      }
 
       displayFiles();
 
@@ -95,9 +134,14 @@
       function displayFiles() {
         console.log("displayFiles");
 
-        fetch(baseUrl + "/files")
+        fetch(
+          baseUrl + "/files" + "?page=" + currentPage + "&pageSize=" + pageSize
+        )
           .then((response) => response.json())
           .then((data) => {
+            isNextPage = data.isNextPage;
+            resetPaginator();
+
             data = data.items;
             data.sort(function (a, b) {
               return b.createdAt - a.createdAt;
@@ -118,6 +162,13 @@
                 btnDelete.innerHTML = "Удалить";
 
                 btnDelete.addEventListener("click", function () {
+                  var confirmDelete = confirm(
+                    "Вы действительно хотите удалить этот файл?"
+                  );
+                  if (!confirmDelete) {
+                    return;
+                  }
+
                   fetch(baseUrl + "/files/" + file.fileId, {
                     method: "DELETE",
                   }).then((response) => displayFiles());
