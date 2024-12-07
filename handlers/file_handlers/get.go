@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 	"hybrid-storage/models"
 	"hybrid-storage/utils"
@@ -15,7 +14,7 @@ func GetFileId(request *http.Request) (string, error) {
 	fileId := request.PathValue("id")
 
 	if fileId == "" {
-		return fileId, errors.New("File ID is required")
+		return fileId, fmt.Errorf("%s", "File ID is required")
 	}
 
 	return fileId, nil
@@ -31,7 +30,7 @@ func ReadFile(request *http.Request, filename string) ([]byte, error) {
 
 	filebytes, err := os.ReadFile(filepath.Join(FILES_DIR, fileId, filename))
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Not found: %v", filename))
+		return nil, fmt.Errorf("%s: %v", "Not found", filename)
 	}
 
 	return filebytes, nil
