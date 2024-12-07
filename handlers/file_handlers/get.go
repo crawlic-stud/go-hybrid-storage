@@ -29,7 +29,7 @@ func ReadFile(request *http.Request, filename string) ([]byte, error) {
 		return nil, err
 	}
 
-	filebytes, err := os.ReadFile(filepath.Join("files", fileId, filename))
+	filebytes, err := os.ReadFile(filepath.Join(FILES_DIR, fileId, filename))
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Not found: %v", filename))
 	}
@@ -38,7 +38,7 @@ func ReadFile(request *http.Request, filename string) ([]byte, error) {
 }
 
 func GetFileHandler(writer http.ResponseWriter, request *http.Request) {
-	metadataFile, err := ReadFile(request, "metadata.json")
+	metadataFile, err := ReadFile(request, METADATA_FILE)
 	if err != nil {
 		utils.WriteResponseStatusCode(models.Error{Detail: err.Error()}, http.StatusNotFound, writer)
 		return
@@ -48,11 +48,11 @@ func GetFileHandler(writer http.ResponseWriter, request *http.Request) {
 
 	writer.Header().Set("Content-Type", "application/octet-stream")
 	writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", metadata.Filename))
-	http.ServeFile(writer, request, filepath.Join("files", metadata.FileId, "file"))
+	http.ServeFile(writer, request, filepath.Join(FILES_DIR, metadata.FileId, "file"))
 }
 
 func GetMetadataHandler(writer http.ResponseWriter, request *http.Request) {
-	metadata, err := ReadFile(request, "metadata.json")
+	metadata, err := ReadFile(request, METADATA_FILE)
 	if err != nil {
 		utils.WriteResponseStatusCode(models.Error{Detail: err.Error()}, http.StatusNotFound, writer)
 		return
@@ -79,7 +79,7 @@ func convertToIntWithDefaultMax(value string, defaultValue int, max int) int {
 func GetAllFilesHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 
-	dir, err := os.Open("files")
+	dir, err := os.Open(FILES_DIR)
 	if err != nil {
 		utils.WriteResponseStatusCode(models.Error{Detail: err.Error()}, http.StatusInternalServerError, writer)
 		return
@@ -111,7 +111,7 @@ func GetAllFilesHandler(writer http.ResponseWriter, request *http.Request) {
 	var filesMetadata []models.FileMetadata
 	for _, dirOrFile := range filesDir {
 		if dirOrFile.IsDir() {
-			metadataFile, err := os.ReadFile(filepath.Join("files", dirOrFile.Name(), "metadata.json"))
+			metadataFile, err := os.ReadFile(filepath.Join(FILES_DIR, dirOrFile.Name(), METADATA_FILE))
 			if err != nil {
 				utils.WriteResponseStatusCode(models.Error{Detail: err.Error()}, http.StatusInternalServerError, writer)
 				return

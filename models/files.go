@@ -12,3 +12,7 @@ type FileMetadata struct {
 	CreatedAt int64  `json:"createdAt"`
 	UpdatedAt int64  `json:"updatedAt"`
 }
+
+type FileMetadataUpdate struct {
+	Filename string `json:"filename"`
+}

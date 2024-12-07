@@ -17,10 +17,13 @@ const PERMISSIONS = 0755
 
 // file size limit
 const MB = 1024 * 1024
-const MAX_FILE_SIZE_MB = 5
+const MAX_FILE_SIZE_MB = 50
 const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * MB
 
-func UploadFile(writer http.ResponseWriter, request *http.Request) {
+const FILES_DIR = "files"
+const METADATA_FILE = "metadata.json"
+
+func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId string) {
 	request.Body = http.MaxBytesReader(writer, request.Body, MAX_FILE_SIZE)
 
 	err := request.ParseMultipartForm(MAX_FILE_SIZE)
@@ -37,8 +40,7 @@ func UploadFile(writer http.ResponseWriter, request *http.Request) {
 
 	defer file.Close()
 
-	fileId := uuid.New().String()
-	path := filepath.Join("files", fileId)
+	path := filepath.Join(FILES_DIR, fileId)
 
 	err = os.MkdirAll(path, PERMISSIONS)
 	if err != nil {
@@ -62,7 +64,7 @@ func UploadFile(writer http.ResponseWriter, request *http.Request) {
 			UpdatedAt: timeNow,
 		},
 	)
-	err = os.WriteFile(filepath.Join(path, "metadata.json"), jsonData, PERMISSIONS)
+	err = os.WriteFile(filepath.Join(path, METADATA_FILE), jsonData, PERMISSIONS)
 	if err != nil {
 		utils.WriteResponseStatusCode(models.Error{Detail: "Error writing metadata file"}, http.StatusInternalServerError, writer)
 		return
@@ -73,6 +75,10 @@ func UploadFile(writer http.ResponseWriter, request *http.Request) {
 		utils.WriteResponseStatusCode(models.Error{Detail: "Error copying file"}, http.StatusInternalServerError, writer)
 		return
 	}
-
 	utils.WriteJsonResponse(models.File{FileId: fileId, Path: path}, writer)
+}
+
+func UploadFile(writer http.ResponseWriter, request *http.Request) {
+	fileId := uuid.New().String()
+	saveFileToServer(writer, request, fileId)
 }

@@ -17,7 +17,7 @@ func DeleteFileHandler(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	err = os.RemoveAll(filepath.Join("files", fileId))
+	err = os.RemoveAll(filepath.Join(FILES_DIR, fileId))
 
 	if err != nil {
 		fmt.Println(err.Error())

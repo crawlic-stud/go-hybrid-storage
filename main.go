@@ -16,12 +16,16 @@ func main() {
 
 	handler.HandleFunc("GET /", handlers.Root)
 
-	// file handlers
+	// handlers for files
 	handler.HandleFunc("POST /files", fileHandlers.UploadFile)
 	handler.HandleFunc("GET /files", fileHandlers.GetAllFilesHandler)
 	handler.HandleFunc("GET /files/{id}", fileHandlers.GetFileHandler)
-	handler.HandleFunc("GET /files/{id}/metadata", fileHandlers.GetMetadataHandler)
+	handler.HandleFunc("PUT /files/{id}", fileHandlers.ReplaceFileHandler)
 	handler.HandleFunc("DELETE /files/{id}", fileHandlers.DeleteFileHandler)
+
+	// handlers for metadata
+	handler.HandleFunc("GET /files/{id}/metadata", fileHandlers.GetMetadataHandler)
+	handler.HandleFunc("PATCH /files/{id}/metadata", fileHandlers.ReplaceMetadataHandler)
 
 	corsConfig := cors.New(cors.Options{
 		AllowedHeaders:   []string{"Origin", "Authorization", "Accept", "Content-Type"},
