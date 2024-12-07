@@ -47,7 +47,7 @@ func GetFileHandler(writer http.ResponseWriter, request *http.Request) {
 	metadata := utils.ReadJsonData[models.FileMetadata](metadataFile)
 
 	writer.Header().Set("Content-Type", "application/octet-stream")
-	writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", metadata.Filename))
+	writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", metadata.Filename+metadata.Extension))
 	http.ServeFile(writer, request, filepath.Join(FILES_DIR, metadata.FileId, "file"))
 }
 
