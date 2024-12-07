@@ -8,17 +8,24 @@
       body {
         font-family: Verdana, Geneva, Tahoma, sans-serif;
       }
-      .file {
-        color: #000;
-        background-color: white;
-        padding: 5px;
-        width: fit-content;
-        display: flex;
+      table {
+        width: 100%;
+        border-collapse: collapse;
       }
-      .file:hover {
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+      }
+      th {
+        background-color: #f2f2f2;
+        text-align: left;
+      }
+      .file-row {
+        background-color: white;
+      }
+      .file-row:hover {
         background-color: #d4d4d4;
-        cursor: pointer;
-        text-decoration-line: underline;
       }
       button {
         border: none;
@@ -26,12 +33,6 @@
         margin: 5px;
         border-radius: 5px;
       }
-
-      .btn-container {
-        position: absolute;
-        right: 50px;
-      }
-
       .delete {
         background-color: rgb(236, 140, 140);
       }
@@ -47,12 +48,6 @@
         background-color: rgb(43, 121, 43);
         color: white;
         cursor: pointer;
-      }
-      .hide {
-        display: none;
-      }
-      .metadata {
-        font-size: smaller;
       }
     </style>
   </head>
@@ -79,7 +74,6 @@
 
       function resetPaginator() {
         document.getElementById("pageNumber").innerHTML = currentPage;
-        // document.getElementById("pageSize").innerHTML = `${pageSize} файлов`;
         var pagePrevious = document.getElementById("pagePrevious");
         var pageNext = document.getElementById("pageNext");
         pagePrevious.disabled = null;
@@ -107,100 +101,118 @@
 
       displayFiles();
 
-      function getFilename(data) {
-        var dateCreate = new Date(data.createdAt * 1000);
-        return (
-          data.filename +
-          " (" +
-          dateCreate.toLocaleDateString() +
-          " " +
-          dateCreate.toLocaleTimeString() +
-          ")"
-        );
-      }
-
-      function getFileMetadataElement(data) {
-        var list = document.createElement("ul");
-        for (const [key, value] of Object.entries(data)) {
-          var li = document.createElement("li");
-          li.innerHTML = `${key}: ${value}`;
-          list.appendChild(li);
-        }
-        list.className = "metadata";
-        list.classList.toggle("hide");
-        return list;
-      }
-
       function displayFiles() {
-        console.log("displayFiles");
-
-        fetch(
-          baseUrl + "/files" + "?page=" + currentPage + "&pageSize=" + pageSize
-        )
+        fetch(`${baseUrl}/files?page=${currentPage}&pageSize=${pageSize}`)
           .then((response) => response.json())
           .then((data) => {
             isNextPage = data.isNextPage;
             resetPaginator();
 
             data = data.items;
-            data.sort(function (a, b) {
-              return b.createdAt - a.createdAt;
+            data.sort((a, b) => b.createdAt - a.createdAt);
+
+            var table = document.createElement("table");
+            var thead = document.createElement("thead");
+            var headerRow = document.createElement("tr");
+            [
+              "Имя файла",
+              "Дата создания",
+              "Время создания",
+              "Действия",
+            ].forEach((header) => {
+              var th = document.createElement("th");
+              th.innerText = header;
+              headerRow.appendChild(th);
             });
-            console.log(data);
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
 
-            var ul = document.createElement("ul");
+            var tbody = document.createElement("tbody");
+            data.forEach((file) => {
+              var row = document.createElement("tr");
+              row.className = "file-row";
 
-            for (var i = 0; i < data.length; i++) {
-              (function (file) {
-                var li = document.createElement("li");
-                li.id = file.fileId;
-                li.innerHTML = getFilename(file);
-                li.className = "file";
+              var fileNameCell = document.createElement("td");
+              var fileNameWrapper = document.createElement("div"); // Контейнер для input и кнопки
+              fileNameWrapper.style.display = "flex"; // Устанавливаем горизонтальное расположение
+              fileNameWrapper.style.gap = "5px"; // Задаем расстояние между input и кнопкой
 
-                var btnDelete = document.createElement("button");
-                btnDelete.className = "delete";
-                btnDelete.innerHTML = "Удалить";
+              // Создаем input для редактирования имени файла
+              var fileNameInput = document.createElement("input");
+              fileNameInput.type = "text";
+              fileNameInput.value = file.filename + file.extension;
 
-                btnDelete.addEventListener("click", function () {
-                  var confirmDelete = confirm(
-                    "Вы действительно хотите удалить этот файл?"
-                  );
-                  if (!confirmDelete) {
-                    return;
-                  }
+              // Стили для input, чтобы он вмещал длинное название
+              fileNameInput.style.width = "100%";
+              fileNameInput.style.flexGrow = "1";
 
-                  fetch(baseUrl + "/files/" + file.fileId, {
+              // Создаем кнопку "Сохранить"
+              var saveButton = document.createElement("button");
+              saveButton.innerText = "Сохранить";
+              saveButton.style.padding = "5px"; // Стили для кнопки
+              saveButton.style.cursor = "pointer";
+
+              // Добавляем обработчик события для кнопки "Сохранить"
+              saveButton.addEventListener("click", function () {
+                fetch(`${baseUrl}/files/${file.fileId}/metadata`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ filename: fileNameInput.value }),
+                }).then(() => {
+                  displayFiles(); // Обновляем список файлов после сохранения
+                });
+              });
+
+              // Добавляем input и кнопку в контейнер
+              fileNameWrapper.appendChild(fileNameInput);
+              fileNameWrapper.appendChild(saveButton);
+
+              // Добавляем контейнер в ячейку таблицы
+              fileNameCell.appendChild(fileNameWrapper);
+              row.appendChild(fileNameCell);
+
+              // Date of creation
+              var date = new Date(file.createdAt * 1000);
+              var dateCell = document.createElement("td");
+              dateCell.innerText = date.toLocaleDateString();
+              row.appendChild(dateCell);
+
+              // Time of creation
+              var timeCell = document.createElement("td");
+              timeCell.innerText = date.toLocaleTimeString();
+              row.appendChild(timeCell);
+
+              // Actions
+              var actionsCell = document.createElement("td");
+              var btnDelete = document.createElement("button");
+              btnDelete.className = "delete";
+              btnDelete.innerText = "Удалить";
+              btnDelete.addEventListener("click", function () {
+                if (confirm("Вы действительно хотите удалить этот файл?")) {
+                  fetch(`${baseUrl}/files/${file.fileId}`, {
                     method: "DELETE",
-                  }).then((response) => displayFiles());
-                });
+                  }).then(() => displayFiles());
+                }
+              });
 
-                var btnDownload = document.createElement("button");
-                btnDownload.className = "download";
-                btnDownload.innerHTML = "Скачать";
+              var btnDownload = document.createElement("button");
+              btnDownload.className = "download";
+              btnDownload.innerText = "Скачать";
+              btnDownload.addEventListener("click", function () {
+                window.location.href = `${baseUrl}/files/${file.fileId}`;
+              });
 
-                btnDownload.addEventListener("click", function () {
-                  window.location.href = baseUrl + "/files/" + file.fileId;
-                });
+              actionsCell.appendChild(btnDownload);
+              actionsCell.appendChild(btnDelete);
+              row.appendChild(actionsCell);
 
-                var btnContainer = document.createElement("div");
-                btnContainer.className = "btn-container";
-
-                btnContainer.appendChild(btnDownload);
-                btnContainer.appendChild(btnDelete);
-                li.appendChild(btnContainer);
-                li.appendChild(getFileMetadataElement(file));
-                ul.appendChild(li);
-
-                li.onclick = function () {
-                  var metadata = li.children[li.children.length - 1];
-                  metadata.classList.toggle("hide");
-                };
-              })(data[i]); // Pass the current item to an IIFE
-            }
+              tbody.appendChild(row);
+            });
+            table.appendChild(tbody);
 
             var filesElement = document.getElementById("files");
-            filesElement.innerHTML = ""; // Clear existing content
-            filesElement.appendChild(ul);
+            filesElement.innerHTML = "";
+            filesElement.appendChild(table);
           });
       }
 
@@ -208,13 +220,8 @@
         var file = document.getElementById("file").files[0];
         var formData = new FormData();
         formData.append("file", file);
-        fetch(baseUrl + "/files", {
-          method: "POST",
-          body: formData,
-        })
-          .then((response) => {
-            return response.json();
-          })
+        fetch(`${baseUrl}/files`, { method: "POST", body: formData })
+          .then((response) => response.json())
           .then((data) => {
             if (data.detail) {
               alert(data.detail);

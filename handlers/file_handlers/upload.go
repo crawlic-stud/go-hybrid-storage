@@ -55,11 +55,13 @@ func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId 
 	defer outFile.Close()
 
 	timeNow := time.Now().UTC().Unix()
+	filename := filepath.Base(header.Filename)
+	extension := filepath.Ext(header.Filename)
 	jsonData := utils.GetJsonData(
 		models.FileMetadata{
 			FileId:    fileId,
-			Filename:  filepath.Base(header.Filename),
-			Extension: filepath.Ext(header.Filename),
+			Filename:  filename[:len(filename)-len(extension)],
+			Extension: extension,
 			CreatedAt: timeNow,
 			UpdatedAt: timeNow,
 		},
