@@ -20,8 +20,6 @@ func ReplaceFileHandler(writer http.ResponseWriter, request *http.Request) {
 }
 
 func ReplaceMetadataHandler(writer http.ResponseWriter, request *http.Request) {
-	println("UPDATE")
-
 	fileId, err := GetFileId(request)
 	if err != nil {
 		utils.WriteResponseStatusCode(models.Error{Detail: err.Error()}, http.StatusBadRequest, writer)

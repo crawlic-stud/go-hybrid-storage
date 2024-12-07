@@ -133,56 +133,47 @@
               row.className = "file-row";
 
               var fileNameCell = document.createElement("td");
-              var fileNameWrapper = document.createElement("div"); // Контейнер для input и кнопки
-              fileNameWrapper.style.display = "flex"; // Устанавливаем горизонтальное расположение
-              fileNameWrapper.style.gap = "5px"; // Задаем расстояние между input и кнопкой
+              var fileNameWrapper = document.createElement("div");
+              fileNameWrapper.style.display = "flex";
+              fileNameWrapper.style.gap = "5px";
 
-              // Создаем input для редактирования имени файла
               var fileNameInput = document.createElement("input");
               fileNameInput.type = "text";
               fileNameInput.value = file.filename + file.extension;
 
-              // Стили для input, чтобы он вмещал длинное название
               fileNameInput.style.width = "100%";
               fileNameInput.style.flexGrow = "1";
 
-              // Создаем кнопку "Сохранить"
               var saveButton = document.createElement("button");
               saveButton.innerText = "Сохранить";
-              saveButton.style.padding = "5px"; // Стили для кнопки
+              saveButton.style.padding = "5px";
               saveButton.style.cursor = "pointer";
 
-              // Добавляем обработчик события для кнопки "Сохранить"
               saveButton.addEventListener("click", function () {
                 fetch(`${baseUrl}/files/${file.fileId}/metadata`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ filename: fileNameInput.value }),
                 }).then(() => {
-                  displayFiles(); // Обновляем список файлов после сохранения
+                  displayFiles();
                 });
               });
 
-              // Добавляем input и кнопку в контейнер
               fileNameWrapper.appendChild(fileNameInput);
               fileNameWrapper.appendChild(saveButton);
 
-              // Добавляем контейнер в ячейку таблицы
               fileNameCell.appendChild(fileNameWrapper);
               row.appendChild(fileNameCell);
 
-              // Date of creation
               var date = new Date(file.createdAt * 1000);
               var dateCell = document.createElement("td");
               dateCell.innerText = date.toLocaleDateString();
               row.appendChild(dateCell);
 
-              // Time of creation
               var timeCell = document.createElement("td");
               timeCell.innerText = date.toLocaleTimeString();
               row.appendChild(timeCell);
 
-              // Actions
               var actionsCell = document.createElement("td");
               var btnDelete = document.createElement("button");
               btnDelete.className = "delete";

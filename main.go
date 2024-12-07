@@ -4,10 +4,20 @@ import (
 	"fmt"
 	"hybrid-storage/handlers"
 	fileHandlers "hybrid-storage/handlers/file_handlers"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/rs/cors"
 )
+
+func LoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		log.Printf("%s %s in %v", r.Method, r.URL.Path, time.Since(start))
+	})
+}
 
 func main() {
 	fmt.Println("Starting server on http://localhost:8000")
@@ -34,7 +44,8 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	corsHandler := corsConfig.Handler(handler)
+	loggingHandler := LoggingMiddleware(handler)
+	corsHandler := corsConfig.Handler(loggingHandler)
 
 	http.ListenAndServe(
 		":8000",
