@@ -149,17 +149,39 @@
               saveButton.style.padding = "5px";
               saveButton.style.cursor = "pointer";
 
+              var replaceFileInput = document.createElement("input");
+              replaceFileInput.type = "file";
+              replaceFileInput.id = "replaceFile";
+
+              var labelReplaceFile = document.createElement("label");
+              labelReplaceFile.for = "replaceFile";
+              labelReplaceFile.innerText = "Заменить файл:";
+
               saveButton.addEventListener("click", function () {
-                fetch(`${baseUrl}/files/${file.fileId}/metadata`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ filename: fileNameInput.value }),
-                }).then(() => {
-                  displayFiles();
-                });
+                if (replaceFileInput.files.length > 0) {
+                  var formData = new FormData();
+                  formData.append("file", replaceFileInput.files[0]);
+                  fetch(`${baseUrl}/files/${file.fileId}`, {
+                    method: "PUT",
+                    body: formData,
+                  }).then(() => {
+                    displayFiles();
+                    replaceFileInput.value = "";
+                  });
+                } else {
+                  fetch(`${baseUrl}/files/${file.fileId}/metadata`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ filename: fileNameInput.value }),
+                  }).then(() => {
+                    displayFiles();
+                  });
+                }
               });
 
               fileNameWrapper.appendChild(fileNameInput);
+              fileNameWrapper.appendChild(labelReplaceFile);
+              fileNameWrapper.appendChild(replaceFileInput);
               fileNameWrapper.appendChild(saveButton);
 
               fileNameCell.appendChild(fileNameWrapper);

@@ -46,7 +46,13 @@ func GetFileHandler(writer http.ResponseWriter, request *http.Request) {
 	metadata := utils.ReadJsonData[models.FileMetadata](metadataFile)
 
 	writer.Header().Set("Content-Type", "application/octet-stream")
-	writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", metadata.Filename+metadata.Extension))
+	writer.Header().Set(
+		"Content-Disposition",
+		fmt.Sprintf(
+			"attachment; filename=%q",
+			metadata.Filename+metadata.Extension,
+		),
+	)
 	http.ServeFile(writer, request, filepath.Join(FILES_DIR, metadata.FileId, "file"))
 }
 
@@ -93,12 +99,17 @@ func GetAllFilesHandler(writer http.ResponseWriter, request *http.Request) {
 	// page starts from 1, ends never
 	pageInt := convertToIntWithDefaultMax(page, 1, 0)
 
+	emptyResponse := models.PaginatedItems[models.File]{
+		Items:      []models.File{},
+		Page:       int64(pageInt),
+		PageSize:   int64(pageSizeInt),
+		IsNextPage: false,
+	}
+
 	// skip dirs
 	for range pageInt - 1 {
 		dir.ReadDir(pageSizeInt)
 	}
-
-	emptyResponse := models.PaginatedItems[models.File]{Items: []models.File{}, Page: int64(pageInt), PageSize: int64(pageSizeInt), IsNextPage: false}
 
 	// read for page
 	filesDir, err := dir.ReadDir(pageSizeInt)
@@ -132,5 +143,10 @@ func GetAllFilesHandler(writer http.ResponseWriter, request *http.Request) {
 		nextPage = true
 	}
 
-	utils.WriteJsonResponse(models.PaginatedItems[models.FileMetadata]{Items: filesMetadata, Page: int64(pageInt), PageSize: int64(pageSizeInt), IsNextPage: nextPage}, writer)
+	utils.WriteJsonResponse(models.PaginatedItems[models.FileMetadata]{
+		Items:      filesMetadata,
+		Page:       int64(pageInt),
+		PageSize:   int64(pageSizeInt),
+		IsNextPage: nextPage,
+	}, writer)
 }

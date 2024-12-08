@@ -28,13 +28,23 @@ func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId 
 
 	err := request.ParseMultipartForm(MAX_FILE_SIZE)
 	if err != nil {
-		utils.WriteResponseStatusCode(models.Error{Detail: fmt.Sprintf("File too large, limit is %v MB", MAX_FILE_SIZE_MB)}, http.StatusBadRequest, writer)
+		utils.WriteResponseStatusCode(
+			models.Error{
+				Detail: fmt.Sprintf("File too large, limit is %v MB", MAX_FILE_SIZE_MB),
+			},
+			http.StatusBadRequest,
+			writer,
+		)
 		return
 	}
 
 	file, header, err := request.FormFile("file")
 	if err != nil {
-		utils.WriteResponseStatusCode(models.Error{Detail: "Error reading file"}, http.StatusBadRequest, writer)
+		utils.WriteResponseStatusCode(
+			models.Error{Detail: "Error reading file"},
+			http.StatusBadRequest,
+			writer,
+		)
 		return
 	}
 
@@ -49,7 +59,11 @@ func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId 
 
 	outFile, err := os.Create(filepath.Join(path, "file"))
 	if err != nil {
-		utils.WriteResponseStatusCode(models.Error{Detail: "Error saving file"}, http.StatusInternalServerError, writer)
+		utils.WriteResponseStatusCode(
+			models.Error{Detail: "Error saving file"},
+			http.StatusInternalServerError,
+			writer,
+		)
 		return
 	}
 	defer outFile.Close()
@@ -68,16 +82,27 @@ func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId 
 	)
 	err = os.WriteFile(filepath.Join(path, METADATA_FILE), jsonData, PERMISSIONS)
 	if err != nil {
-		utils.WriteResponseStatusCode(models.Error{Detail: "Error writing metadata file"}, http.StatusInternalServerError, writer)
+		utils.WriteResponseStatusCode(
+			models.Error{Detail: "Error writing metadata file"},
+			http.StatusInternalServerError,
+			writer,
+		)
 		return
 	}
 
 	_, err = io.Copy(outFile, file)
 	if err != nil {
-		utils.WriteResponseStatusCode(models.Error{Detail: "Error copying file"}, http.StatusInternalServerError, writer)
+		utils.WriteResponseStatusCode(
+			models.Error{Detail: "Error copying file"},
+			http.StatusInternalServerError,
+			writer,
+		)
 		return
 	}
-	utils.WriteJsonResponse(models.File{FileId: fileId, Path: path}, writer)
+	utils.WriteJsonResponse(
+		models.File{FileId: fileId, Path: path},
+		writer,
+	)
 }
 
 func UploadFile(writer http.ResponseWriter, request *http.Request) {
