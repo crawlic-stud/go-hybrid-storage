@@ -17,7 +17,7 @@ const PERMISSIONS = 0755
 
 // file size limit
 const MB = 1024 * 1024
-const MAX_FILE_SIZE_MB = 50
+const MAX_FILE_SIZE_MB = 5
 const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * MB
 
 const FILES_DIR = "files"

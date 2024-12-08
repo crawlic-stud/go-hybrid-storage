@@ -11,16 +11,33 @@ import (
 	"github.com/rs/cors"
 )
 
+type LoggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (lrw *LoggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		lrw := &LoggingResponseWriter{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK, // Default status code
+		}
+
 		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("%s %s in %v", r.Method, r.URL.Path, time.Since(start))
+		next.ServeHTTP(lrw, r)
+		log.Printf("%d %s %s %s in %v", lrw.statusCode, r.Method, r.URL.Path, r.URL.Query().Encode(), time.Since(start))
 	})
 }
 
 func main() {
-	fmt.Println("Starting server on http://localhost:8000")
+	portServe := ":8008"
+	fmt.Println("Starting server on http://localhost" + portServe)
 
 	handler := http.NewServeMux()
 
@@ -47,8 +64,16 @@ func main() {
 	loggingHandler := LoggingMiddleware(handler)
 	corsHandler := corsConfig.Handler(loggingHandler)
 
+	// client := &http.Client{
+	// 	Timeout: 10 * time.Second,
+	// 	Transport: &http.Transport{
+	// 		MaxIdleConns:        100,
+	// 		MaxIdleConnsPerHost: 100,
+	// 	},
+	// }
+
 	http.ListenAndServe(
-		":8000",
+		portServe,
 		corsHandler,
 	)
 }
