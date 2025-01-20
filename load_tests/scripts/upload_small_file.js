@@ -16,7 +16,7 @@ export default function () {
   let res = http.post("http://localhost:8008/files", formData);
   check(res, {
     "status was 200": (r) => r.status === 200,
-    "response time < 1s": (r) => r.timings.duration < 1000,
+    "response time < 200ms": (r) => r.timings.duration < 200,
   });
   sleep(1);
 }
