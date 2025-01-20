@@ -5,9 +5,11 @@ import (
 	"hybrid-storage/models"
 	"hybrid-storage/utils"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,20 +19,20 @@ const PERMISSIONS = 0755
 
 // file size limit
 const MB = 1024 * 1024
-const MAX_FILE_SIZE_MB = 5
-const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * MB
+const MAX_CHUNK_SIZE_MB = 5
+const MAX_FILE_SIZE = MAX_CHUNK_SIZE_MB * MB
 
 const FILES_DIR = "files"
 const METADATA_FILE = "metadata.json"
 
-func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId string) {
+func saveFileToServerInChunks(writer http.ResponseWriter, request *http.Request, fileId string) {
 	request.Body = http.MaxBytesReader(writer, request.Body, MAX_FILE_SIZE)
 
 	err := request.ParseMultipartForm(MAX_FILE_SIZE)
 	if err != nil {
 		utils.WriteResponseStatusCode(
 			models.Error{
-				Detail: fmt.Sprintf("File too large, limit is %v MB", MAX_FILE_SIZE_MB),
+				Detail: fmt.Sprintf("File chunk is too large, limit is %v MB", MAX_CHUNK_SIZE_MB),
 			},
 			http.StatusBadRequest,
 			writer,
@@ -38,7 +40,7 @@ func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId 
 		return
 	}
 
-	file, header, err := request.FormFile("file")
+	file, _, err := request.FormFile("file")
 	if err != nil {
 		utils.WriteResponseStatusCode(
 			models.Error{Detail: "Error reading file"},
@@ -47,17 +49,31 @@ func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId 
 		)
 		return
 	}
-
 	defer file.Close()
 
-	path := filepath.Join(FILES_DIR, fileId)
+	chunkNum := request.FormValue("chunkNumber")
+	totalChunks := request.FormValue("totalChunks")
+	filenameFormValue := request.FormValue("filename")
+	chunkNumInt, err := strconv.Atoi(chunkNum)
+	if err != nil {
+		utils.WriteResponseStatusCode(
+			models.Error{Detail: "Expected int for chunk number"},
+			http.StatusUnprocessableEntity,
+			writer,
+		)
+		return
+	}
+	if chunkNumInt > 1 {
+		fileId = request.FormValue("fileId")
+	}
 
+	path := filepath.Join(FILES_DIR, fileId)
 	err = os.MkdirAll(path, PERMISSIONS)
 	if err != nil {
 		fmt.Printf("Error creating directory: %v\n", err)
 	}
 
-	outFile, err := os.Create(filepath.Join(path, "file"))
+	outFile, err := os.OpenFile(filepath.Join(path, "file"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, PERMISSIONS)
 	if err != nil {
 		utils.WriteResponseStatusCode(
 			models.Error{Detail: "Error saving file"},
@@ -69,8 +85,8 @@ func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId 
 	defer outFile.Close()
 
 	timeNow := time.Now().UTC().Unix()
-	filename := filepath.Base(header.Filename)
-	extension := filepath.Ext(header.Filename)
+	filename := filepath.Base(filenameFormValue)
+	extension := filepath.Ext(filenameFormValue)
 	jsonData := utils.GetJsonData(
 		models.FileMetadata{
 			FileId:    fileId,
@@ -99,6 +115,7 @@ func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId 
 		)
 		return
 	}
+	log.Printf("Chunk %s of %s uploaded successfully", chunkNum, totalChunks)
 	utils.WriteJsonResponse(
 		models.File{FileId: fileId, Path: path},
 		writer,
@@ -107,5 +124,5 @@ func saveFileToServer(writer http.ResponseWriter, request *http.Request, fileId 
 
 func UploadFile(writer http.ResponseWriter, request *http.Request) {
 	fileId := uuid.New().String()
-	saveFileToServer(writer, request, fileId)
+	saveFileToServerInChunks(writer, request, fileId)
 }

@@ -16,7 +16,7 @@ func ReplaceFileHandler(writer http.ResponseWriter, request *http.Request) {
 		utils.WriteResponseStatusCode(models.Error{Detail: err.Error()}, http.StatusBadRequest, writer)
 		return
 	}
-	saveFileToServer(writer, request, fileId)
+	saveFileToServerInChunks(writer, request, fileId)
 }
 
 func ReplaceMetadataHandler(writer http.ResponseWriter, request *http.Request) {

@@ -49,13 +49,31 @@
         color: white;
         cursor: pointer;
       }
+      #progressContainer {
+        width: 100%;
+        background-color: #f3f3f3;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin-top: 10px;
+      }
+      #progressBar {
+        width: 0;
+        height: 20px;
+        background-color: #4caf50;
+        border-radius: 5px;
+      }
     </style>
   </head>
   <body>
     <form>
       <label>Отправить файл:</label>
       <input required size="100" type="file" id="file" name="file" />
-      <button type="button" onclick="uploadFile()">Отправить</button>
+      <button type="button" onclick="uploadFile()" id="uploadButton">
+        Отправить
+      </button>
+      <div id="progressContainer" hidden>
+        <div id="progressBar"></div>
+      </div>
     </form>
     <br />
     <label>Файлы:</label>
@@ -71,6 +89,7 @@
       var isNextPage = false;
       var isPreviousPage = false;
       var pageSize = 20;
+      const CHUNK_SIZE = 4 * 1024 * 1024; // in MB
 
       function resetPaginator() {
         document.getElementById("pageNumber").innerHTML = currentPage;
@@ -229,19 +248,55 @@
           });
       }
 
-      function uploadFile() {
+      async function uploadFile() {
         var file = document.getElementById("file").files[0];
-        var formData = new FormData();
-        formData.append("file", file);
-        fetch(`${baseUrl}/files`, { method: "POST", body: formData })
-          .then((response) => response.json())
-          .then((data) => {
-            console.log(data);
-            if (data.detail) {
-              alert(data.detail);
-            }
-            displayFiles();
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+        var start,
+          end,
+          chunk,
+          fileId = null;
+
+        var uploadButton = document.getElementById("uploadButton");
+        uploadButton.disabled = true;
+        var progressBar = document.getElementById("progressBar");
+        progressBar.parentElement.hidden = false;
+
+        for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber++) {
+          start = chunkNumber * CHUNK_SIZE;
+          end = Math.min(start + CHUNK_SIZE, file.size);
+          chunk = file.slice(start, end);
+
+          var formData = new FormData();
+          formData.append("file", chunk);
+          formData.append("filename", file.name);
+          formData.append("fileId", fileId);
+          formData.append("chunkNumber", chunkNumber + 1);
+          formData.append("totalChunks", totalChunks);
+
+          console.log(`Uploading chunk ${chunkNumber + 1} of ${totalChunks}`);
+          console.table(formData);
+
+          response = await fetch(`${baseUrl}/files`, {
+            method: "POST",
+            body: formData,
           });
+
+          var data = await response.json();
+          console.log(data);
+          if (data.detail) {
+            alert(data.detail);
+          }
+          console.log(
+            `Chunk ${chunkNumber + 1} of ${totalChunks} uploaded successfully`
+          );
+          if (!fileId) fileId = data.fileId;
+
+          progressBar.style.width =
+            ((chunkNumber + 1) / totalChunks) * 100 + "%";
+        }
+        displayFiles();
+        uploadButton.disabled = false;
+        progressBar.parentElement.hidden = true;
       }
     </script>
   </body>
