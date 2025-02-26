@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"hybrid-storage/handlers"
-	fileHandlers "hybrid-storage/handlers/file_handlers"
+	fileHandlers "hybrid-storage/handlers/backends"
 	"log"
 	"net/http"
 	"time"
@@ -44,15 +44,15 @@ func main() {
 	handler.HandleFunc("GET /", handlers.Root)
 
 	// handlers for files
-	handler.HandleFunc("POST /files", fileHandlers.UploadFile)
-	handler.HandleFunc("GET /files", fileHandlers.GetAllFilesHandler)
-	handler.HandleFunc("GET /files/{id}", fileHandlers.GetFileHandler)
-	handler.HandleFunc("PUT /files/{id}", fileHandlers.ReplaceFileHandler)
-	handler.HandleFunc("DELETE /files/{id}", fileHandlers.DeleteFileHandler)
+	app := handlers.App{Backend: fileHandlers.FileSystemBackend{}, Config: handlers.AppConfig{MaxFileSize: 5 * 1024 * 1024, MaxChunkSizeMb: 5}}
+	handler.HandleFunc("POST /files", app.UploadFileHandler)
+	handler.HandleFunc("GET /files", app.GetAllFilesHandler)
+	handler.HandleFunc("GET /files/{id}", app.GetFileHandler)
+	handler.HandleFunc("PUT /files/{id}", app.UpdateFileHandler)
+	handler.HandleFunc("DELETE /files/{id}", app.DeleteFileHandler)
 
 	// handlers for metadata
-	handler.HandleFunc("GET /files/{id}/metadata", fileHandlers.GetMetadataHandler)
-	handler.HandleFunc("PATCH /files/{id}/metadata", fileHandlers.ReplaceMetadataHandler)
+	handler.HandleFunc("GET /files/{id}/metadata", app.GetFileMetadataHandler)
 
 	corsConfig := cors.New(cors.Options{
 		AllowedHeaders:   []string{"Origin", "Authorization", "Accept", "Content-Type"},

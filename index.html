@@ -176,25 +176,16 @@
               labelReplaceFile.for = "replaceFile";
               labelReplaceFile.innerText = "Заменить файл:";
 
-              saveButton.addEventListener("click", function () {
+              saveButton.addEventListener("click", async function () {
                 if (replaceFileInput.files.length > 0) {
-                  var formData = new FormData();
-                  formData.append("file", replaceFileInput.files[0]);
-                  fetch(`${baseUrl}/files/${file.fileId}`, {
-                    method: "PUT",
-                    body: formData,
-                  }).then(() => {
-                    displayFiles();
-                    replaceFileInput.value = "";
-                  });
+                  await updateFile(replaceFileInput.files[0], file.fileId);
                 } else {
-                  fetch(`${baseUrl}/files/${file.fileId}/metadata`, {
-                    method: "PATCH",
+                  await fetch(`${baseUrl}/files/${file.fileId}`, {
+                    method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ filename: fileNameInput.value }),
-                  }).then(() => {
-                    displayFiles();
                   });
+                  displayFiles();
                 }
               });
 
@@ -278,6 +269,55 @@
 
           response = await fetch(`${baseUrl}/files`, {
             method: "POST",
+            body: formData,
+          });
+
+          var data = await response.json();
+          console.log(data);
+          if (data.detail) {
+            alert(data.detail);
+          }
+          console.log(
+            `Chunk ${chunkNumber + 1} of ${totalChunks} uploaded successfully`
+          );
+          if (!fileId) fileId = data.fileId;
+
+          progressBar.style.width =
+            ((chunkNumber + 1) / totalChunks) * 100 + "%";
+        }
+        displayFiles();
+        uploadButton.disabled = false;
+        progressBar.parentElement.hidden = true;
+      }
+
+      async function updateFile(file, fileId) {
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+        var start,
+          end,
+          chunk = null;
+
+        var uploadButton = document.getElementById("uploadButton");
+        uploadButton.disabled = true;
+        var progressBar = document.getElementById("progressBar");
+        progressBar.parentElement.hidden = false;
+
+        for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber++) {
+          start = chunkNumber * CHUNK_SIZE;
+          end = Math.min(start + CHUNK_SIZE, file.size);
+          chunk = file.slice(start, end);
+
+          var formData = new FormData();
+          formData.append("file", chunk);
+          formData.append("filename", file.name);
+          formData.append("fileId", fileId);
+          formData.append("chunkNumber", chunkNumber + 1);
+          formData.append("totalChunks", totalChunks);
+
+          console.log(`Uploading chunk ${chunkNumber + 1} of ${totalChunks}`);
+          console.table(formData);
+
+          response = await fetch(`${baseUrl}/files/${fileId}`, {
+            method: "PUT",
             body: formData,
           });
 
