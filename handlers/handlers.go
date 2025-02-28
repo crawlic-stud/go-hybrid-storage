@@ -45,11 +45,18 @@ func (app *App) UploadFileHandler(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	result, err := app.Backend.UploadFile(chunk, fileId)
-	if err != nil {
-		handleBackendError(writer, err)
-		return
+	// if chunk is empty - dont save anything
+	var result backends.FileServerResult
+	if chunk.FormDataChunk != nil {
+		result, err = app.Backend.UploadFile(chunk, fileId)
+		if err != nil {
+			handleBackendError(writer, err)
+			return
+		}
+	} else {
+		result = backends.FileServerResult{FileId: fileId}
 	}
+
 	utils.WriteJsonResponse(result, writer)
 }
 

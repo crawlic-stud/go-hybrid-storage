@@ -44,7 +44,12 @@ func main() {
 	handler.HandleFunc("GET /", handlers.Root)
 
 	// handlers for files
-	app := handlers.App{Backend: fileHandlers.FileSystemBackend{}, Config: handlers.AppConfig{MaxFileSize: 5 * 1024 * 1024, MaxChunkSizeMb: 5}}
+	// filesystemBackend := fileHandlers.FileSystemBackend{}
+	sqliteBackend, err := fileHandlers.NewSQLiteBackend("test.db")
+	if err != nil {
+		panic(err)
+	}
+	app := handlers.App{Backend: sqliteBackend, Config: handlers.AppConfig{MaxFileSize: 5 * 1024 * 1024, MaxChunkSizeMb: 5}}
 	handler.HandleFunc("POST /files", app.UploadFileHandler)
 	handler.HandleFunc("GET /files", app.GetAllFilesHandler)
 	handler.HandleFunc("GET /files/{id}", app.GetFileHandler)

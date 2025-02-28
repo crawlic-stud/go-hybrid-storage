@@ -68,3 +68,16 @@ func ReadFileInChunks(writer http.ResponseWriter, request *http.Request, fileId 
 		JsonData:      jsonData,
 	}, nil
 }
+
+func ReadChunkBytes(chunk ChunkResult) []byte {
+	bytes := make([]byte, 0)
+	for {
+		currentBytes := make([]byte, 1024)
+		_, err := chunk.FormDataChunk.Read(currentBytes)
+		if err != nil {
+			break
+		}
+		bytes = append(bytes, currentBytes...)
+	}
+	return bytes
+}

@@ -19,11 +19,6 @@ const METADATA_FILE = "metadata.json"
 const FILE_NAME = "file"
 
 func (fsb FileSystemBackend) UploadFile(chunk utils.ChunkResult, fileId string) (FileServerResult, error) {
-	// if chunk is empty - return back fileId
-	if chunk.FormDataChunk == nil {
-		return FileServerResult{FileId: fileId}, nil
-	}
-
 	path := filepath.Join(FILES_DIR, chunk.FileId)
 	err := os.MkdirAll(path, PERMISSIONS)
 	if err != nil {
