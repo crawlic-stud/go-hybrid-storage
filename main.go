@@ -45,11 +45,14 @@ func main() {
 
 	// handlers for files
 	// filesystemBackend := fileHandlers.FileSystemBackend{}
-	sqliteBackend, err := fileHandlers.NewSQLiteBackend("test.db")
+	// sqlBackend, err := fileHandlers.NewSQLiteBackend("test.db")
+	sqlBackend, err := fileHandlers.NewPostgresBackend(
+		"localhost", 5432, "postgres", "password", "postgres", "disable",
+	)
 	if err != nil {
 		panic(err)
 	}
-	app := handlers.App{Backend: sqliteBackend, Config: handlers.AppConfig{MaxFileSize: 5 * 1024 * 1024, MaxChunkSizeMb: 5}}
+	app := handlers.App{Backend: sqlBackend, Config: handlers.AppConfig{MaxFileSize: 5 * 1024 * 1024, MaxChunkSizeMb: 5}}
 	handler.HandleFunc("POST /files", app.UploadFileHandler)
 	handler.HandleFunc("GET /files", app.GetAllFilesHandler)
 	handler.HandleFunc("GET /files/{id}", app.GetFileHandler)

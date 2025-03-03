@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -18,8 +19,37 @@ type SQLBackend struct {
 	query utils.Query
 }
 
-func createTables(db *sql.DB) error {
-	tables := []string{
+func createTables(db *sql.DB, query utils.Query) error {
+	var fileType string
+	var idType string
+	switch query.Type {
+	case utils.SQLite:
+		fileType = "BLOB"
+		idType = "INTEGER PRIMARY KEY AUTOINCREMENT"
+	case utils.PostgreSQL:
+		fileType = "BYTEA"
+		idType = "SERIAL PRIMARY KEY"
+	default:
+		panic(errors.New("unknown query type"))
+	}
+	createFilesQuery := fmt.Sprintf(
+		`CREATE TABLE IF NOT EXISTS files (
+			id %s,
+			file_id TEXT NOT NULL,
+			chunk INTEGER NOT NULL,
+			data %s NOT NULL,
+			FOREIGN KEY (file_id) REFERENCES metadata (file_id)
+		)`,
+		idType,
+		fileType,
+	)
+	queries := []string{
+		`--sql
+		DROP TABLE IF EXISTS files
+		`,
+		`--sql
+		DROP TABLE IF EXISTS metadata
+		`,
 		`CREATE TABLE IF NOT EXISTS metadata (
 			file_id TEXT PRIMARY KEY,
 			filename TEXT NOT NULL,
@@ -27,13 +57,13 @@ func createTables(db *sql.DB) error {
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL
 		)`,
-		`CREATE TABLE IF NOT EXISTS files (
-			file_id TEXT PRIMARY KEY,
-			data BLOB NOT NULL,
-			FOREIGN KEY (file_id) REFERENCES metadata (file_id)
-		)`,
+		createFilesQuery,
+		`--sql
+		CREATE UNIQUE INDEX idx_files_file_id_chunk
+		ON files (file_id, chunk);
+		`,
 	}
-	for _, tableCreateScript := range tables {
+	for _, tableCreateScript := range queries {
 		_, err := db.Exec(tableCreateScript)
 		if err != nil {
 			return fmt.Errorf("failed to create table: %w", err)
@@ -48,12 +78,13 @@ func NewSQLiteBackend(dbPath string) (*SQLBackend, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	err = createTables(db)
+	sqliteQuery := utils.Query{Type: utils.SQLite}
+	err = createTables(db, sqliteQuery)
 	if err != nil {
 		return nil, err
 	}
 
-	return &SQLBackend{db: db, query: utils.Query{Type: utils.SQLite}}, nil
+	return &SQLBackend{db: db, query: sqliteQuery}, nil
 }
 
 func NewPostgresBackend(
@@ -81,12 +112,13 @@ func NewPostgresBackend(
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	err = createTables(db)
+	postgresQuery := utils.Query{Type: utils.PostgreSQL}
+	err = createTables(db, postgresQuery)
 	if err != nil {
 		return nil, err
 	}
 
-	return &SQLBackend{db: db}, nil
+	return &SQLBackend{db: db, query: postgresQuery}, nil
 }
 
 func (b *SQLBackend) UploadFile(
@@ -96,40 +128,40 @@ func (b *SQLBackend) UploadFile(
 	FileServerResult,
 	error,
 ) {
-	if !chunk.IsLastChunk {
-		return FileServerResult{}, &FileServerError{
-			Code:   http.StatusBadRequest,
-			Detail: "only full file uploads are supported",
-		}
-	}
-
 	now := time.Now().Unix()
 
-	metadata := utils.ReadJsonData[models.FileMetadata](chunk.JsonData)
-	_, err := b.db.Exec(b.query.GetCachedQuery(`
-		INSERT INTO metadata (file_id, filename, extension,  created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?)
-	`),
-		fileId,
-		metadata.Filename,
-		metadata.Extension,
-		now,
-		now,
-	)
-	if err != nil {
-		log.Println(err.Error())
-		return FileServerResult{}, errors.New("failed to insert metadata")
+	if chunk.ChunkNumber == 1 {
+		metadata := utils.ReadJsonData[models.FileMetadata](chunk.JsonData)
+		_, err := b.db.Exec(b.query.GetCachedQuery(`
+			INSERT INTO metadata (file_id, filename, extension,  created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?)
+		`),
+			fileId,
+			metadata.Filename,
+			metadata.Extension,
+			now,
+			now,
+		)
+		if err != nil {
+			log.Println(err.Error())
+			return FileServerResult{}, errors.New("failed to insert metadata")
+		}
+	} else {
+		// chunk belongs to the same file
+		fileId = chunk.FileId
 	}
 
 	fileData := utils.ReadChunkBytes(chunk)
-	_, err = b.db.Exec(b.query.GetCachedQuery(`
-		INSERT INTO files (file_id, data)
-		VALUES (?, ?)
+	_, err := b.db.Exec(b.query.GetCachedQuery(`
+		INSERT INTO files (file_id, chunk, data)
+		VALUES (?, ?, ?)
 	`),
 		fileId,
+		chunk.ChunkNumber,
 		fileData,
 	)
 	if err != nil {
+		log.Println(err.Error())
 		return FileServerResult{}, errors.New("failed to insert file")
 	}
 
@@ -174,15 +206,28 @@ func (b *SQLBackend) GetFile(fileId string) (GetFileResult, error) {
 		&metadata.UpdatedAt,
 	)
 
-	fileDataRow := b.db.QueryRow(b.query.GetCachedQuery(`
+	fileDataRows, err := b.db.Query(b.query.GetCachedQuery(`
 		SELECT data FROM files WHERE file_id = ?
 	`),
 		fileId,
 	)
-	var fileData []byte
-	fileDataScanErr := fileDataRow.Scan(&fileData)
+	if err != nil {
+		return GetFileResult{}, err
+	}
+	defer fileDataRows.Close()
 
-	err := handleScanErrors([]error{metadataScanErr, fileDataScanErr})
+	var fileData []byte
+	scanErrors := []error{metadataScanErr}
+	for fileDataRows.Next() {
+		var chunkData []byte
+		fileDataScanErr := fileDataRows.Scan(&chunkData)
+		if fileDataScanErr != nil {
+			scanErrors = append(scanErrors, fileDataScanErr)
+		}
+		// constuct file from its chunks
+		fileData = append(fileData, chunkData...)
+	}
+	err = handleScanErrors(scanErrors)
 	if err != nil {
 		return GetFileResult{}, err
 	}
@@ -292,6 +337,7 @@ func (b *SQLBackend) UpdateFile(
 	var query string
 	var args []interface{}
 
+	// update only metadata
 	if chunk.FormDataChunk == nil {
 		query = b.query.GetCachedQuery(`
 			UPDATE metadata
@@ -303,36 +349,11 @@ func (b *SQLBackend) UpdateFile(
 		if err != nil {
 			return FileServerResult{}, err
 		}
-
-	} else {
-		fileData := utils.ReadChunkBytes(chunk)
-		query = b.query.GetCachedQuery(`
-			UPDATE files
-			SET data = ?
-			WHERE file_id = ?
-		`)
-		args = []any{fileData, fileId}
-		_, err := b.db.Exec(query, args...)
-		if err != nil {
-			return FileServerResult{}, err
+	} else { // else delete old file and upload new with same file_id
+		if chunk.ChunkNumber == 1 {
+			b.DeleteFile(fileId)
 		}
-
-		metadata := utils.ReadJsonData[models.FileMetadata](chunk.JsonData)
-		query = b.query.GetCachedQuery(`
-			UPDATE metadata
-			SET filename = ?, updated_at = ?
-			WHERE file_id = ?
-		`)
-		args = []any{metadata.Filename, time.Now().Unix(), fileId}
-		_, err = b.db.Exec(query, args...)
-		if err != nil {
-			return FileServerResult{}, err
-		}
-	}
-
-	_, err := b.db.Exec(query, args...)
-	if err != nil {
-		return FileServerResult{}, err
+		b.UploadFile(chunk, fileId)
 	}
 
 	return FileServerResult{FileId: fileId}, nil
