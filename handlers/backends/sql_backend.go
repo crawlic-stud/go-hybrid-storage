@@ -13,24 +13,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type SQLiteBackend struct {
-	db *sql.DB
+type SQLBackend struct {
+	db    *sql.DB
+	query utils.Query
 }
 
-func createTable(db *sql.DB, sql string) error {
-	_, err := db.Exec(sql)
-	if err != nil {
-		return fmt.Errorf("failed to create table: %w", err)
-	}
-	return nil
-}
-
-func NewSQLiteBackend(dbPath string) (*SQLiteBackend, error) {
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-
+func createTables(db *sql.DB) error {
 	tables := []string{
 		`CREATE TABLE IF NOT EXISTS metadata (
 			file_id TEXT PRIMARY KEY,
@@ -45,17 +33,63 @@ func NewSQLiteBackend(dbPath string) (*SQLiteBackend, error) {
 			FOREIGN KEY (file_id) REFERENCES metadata (file_id)
 		)`,
 	}
-	for _, table := range tables {
-		err := createTable(db, table)
+	for _, tableCreateScript := range tables {
+		_, err := db.Exec(tableCreateScript)
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("failed to create table: %w", err)
 		}
 	}
-
-	return &SQLiteBackend{db: db}, nil
+	return nil
 }
 
-func (b *SQLiteBackend) UploadFile(
+func NewSQLiteBackend(dbPath string) (*SQLBackend, error) {
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	err = createTables(db)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SQLBackend{db: db, query: utils.Query{Type: utils.SQLite}}, nil
+}
+
+func NewPostgresBackend(
+	host string,
+	port int,
+	user string,
+	password string,
+	dbname string,
+	sslMode string,
+) (
+	*SQLBackend,
+	error,
+) {
+	connStr := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		host,
+		port,
+		user,
+		password,
+		dbname,
+		sslMode,
+	)
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	err = createTables(db)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SQLBackend{db: db}, nil
+}
+
+func (b *SQLBackend) UploadFile(
 	chunk utils.ChunkResult,
 	fileId string,
 ) (
@@ -72,11 +106,10 @@ func (b *SQLiteBackend) UploadFile(
 	now := time.Now().Unix()
 
 	metadata := utils.ReadJsonData[models.FileMetadata](chunk.JsonData)
-	_, err := b.db.Exec(
-		`
+	_, err := b.db.Exec(b.query.GetCachedQuery(`
 		INSERT INTO metadata (file_id, filename, extension,  created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?)
-	`,
+	`),
 		fileId,
 		metadata.Filename,
 		metadata.Extension,
@@ -89,11 +122,10 @@ func (b *SQLiteBackend) UploadFile(
 	}
 
 	fileData := utils.ReadChunkBytes(chunk)
-	_, err = b.db.Exec(
-		`
+	_, err = b.db.Exec(b.query.GetCachedQuery(`
 		INSERT INTO files (file_id, data)
 		VALUES (?, ?)
-	`,
+	`),
 		fileId,
 		fileData,
 	)
@@ -125,13 +157,12 @@ func handleScanErrors(errs []error) error {
 	return nil
 }
 
-func (b *SQLiteBackend) GetFile(fileId string) (GetFileResult, error) {
-	metadataRow := b.db.QueryRow(
-		`
+func (b *SQLBackend) GetFile(fileId string) (GetFileResult, error) {
+	metadataRow := b.db.QueryRow(b.query.GetCachedQuery(`
 		SELECT file_id, filename, extension,  created_at, updated_at
 		FROM metadata
 		WHERE file_id = ?
-	`,
+	`),
 		fileId,
 	)
 	var metadata models.FileMetadata
@@ -143,10 +174,9 @@ func (b *SQLiteBackend) GetFile(fileId string) (GetFileResult, error) {
 		&metadata.UpdatedAt,
 	)
 
-	fileDataRow := b.db.QueryRow(
-		`
+	fileDataRow := b.db.QueryRow(b.query.GetCachedQuery(`
 		SELECT data FROM files WHERE file_id = ?
-	`,
+	`),
 		fileId,
 	)
 	var fileData []byte
@@ -160,16 +190,15 @@ func (b *SQLiteBackend) GetFile(fileId string) (GetFileResult, error) {
 	return GetFileResult{File: fileData, Metadata: metadata}, nil
 }
 
-func (b *SQLiteBackend) GetFileMetadata(fileId string) (
+func (b *SQLBackend) GetFileMetadata(fileId string) (
 	models.FileMetadata,
 	error,
 ) {
-	row := b.db.QueryRow(
-		`
+	row := b.db.QueryRow(b.query.GetCachedQuery(`
 		SELECT file_id, filename, extension, created_at, updated_at
 		FROM metadata
 		WHERE file_id = ?
-	`,
+	`),
 		fileId,
 	)
 
@@ -193,7 +222,7 @@ func paginateQuery(query string, limit int, offset int) string {
 	return query + fmt.Sprintf(" LIMIT %d OFFSET %d", limit, offset)
 }
 
-func (b *SQLiteBackend) GetAllFiles(page int, pageSize int) (
+func (b *SQLBackend) GetAllFiles(page int, pageSize int) (
 	PaginatedItems[models.FileMetadata],
 	error,
 ) {
@@ -252,7 +281,7 @@ func (b *SQLiteBackend) GetAllFiles(page int, pageSize int) (
 	return result, nil
 }
 
-func (b *SQLiteBackend) UpdateFile(
+func (b *SQLBackend) UpdateFile(
 	chunk utils.ChunkResult,
 	fileId string,
 	data FileMetadataUpdate,
@@ -260,49 +289,40 @@ func (b *SQLiteBackend) UpdateFile(
 	FileServerResult,
 	error,
 ) {
-	metadata, err := b.GetFileMetadata(fileId)
-	if err != nil {
-		return FileServerResult{}, err
-	}
-
-	if data.Filename != "" {
-		metadata.Filename = data.Filename
-	}
-
 	var query string
 	var args []interface{}
 
 	if chunk.FormDataChunk == nil {
-		query = `
-		UPDATE metadata
-		SET filename = ?, updated_at = ?
-		WHERE file_id = ?
-		`
+		query = b.query.GetCachedQuery(`
+			UPDATE metadata
+			SET filename = ?, updated_at = ?
+			WHERE file_id = ?
+		`)
 		args = []any{data.Filename, time.Now().Unix(), fileId}
-		_, err = b.db.Exec(query, args...)
+		_, err := b.db.Exec(query, args...)
 		if err != nil {
 			return FileServerResult{}, err
 		}
 
 	} else {
 		fileData := utils.ReadChunkBytes(chunk)
-		query = `
-		UPDATE files
-		SET data = ?
-		WHERE file_id = ?
-		`
+		query = b.query.GetCachedQuery(`
+			UPDATE files
+			SET data = ?
+			WHERE file_id = ?
+		`)
 		args = []any{fileData, fileId}
-		_, err = b.db.Exec(query, args...)
+		_, err := b.db.Exec(query, args...)
 		if err != nil {
 			return FileServerResult{}, err
 		}
 
 		metadata := utils.ReadJsonData[models.FileMetadata](chunk.JsonData)
-		query = `
-		UPDATE metadata
-		SET filename = ?, updated_at = ?
-		WHERE file_id = ?
-		`
+		query = b.query.GetCachedQuery(`
+			UPDATE metadata
+			SET filename = ?, updated_at = ?
+			WHERE file_id = ?
+		`)
 		args = []any{metadata.Filename, time.Now().Unix(), fileId}
 		_, err = b.db.Exec(query, args...)
 		if err != nil {
@@ -310,7 +330,7 @@ func (b *SQLiteBackend) UpdateFile(
 		}
 	}
 
-	_, err = b.db.Exec(query, args...)
+	_, err := b.db.Exec(query, args...)
 	if err != nil {
 		return FileServerResult{}, err
 	}
@@ -318,23 +338,21 @@ func (b *SQLiteBackend) UpdateFile(
 	return FileServerResult{FileId: fileId}, nil
 }
 
-func (b *SQLiteBackend) DeleteFile(fileId string) (bool, error) {
-	_, err := b.db.Exec(
-		`
+func (b *SQLBackend) DeleteFile(fileId string) (bool, error) {
+	_, err := b.db.Exec(b.query.GetCachedQuery(`
 		DELETE FROM files
 		WHERE file_id = ?
-	`,
+	`),
 		fileId,
 	)
 	if err != nil {
 		return false, err
 	}
 
-	_, err = b.db.Exec(
-		`
+	_, err = b.db.Exec(b.query.GetCachedQuery(`
 		DELETE FROM metadata
 		WHERE file_id = ?
-	`,
+	`),
 		fileId,
 	)
 	if err != nil {
