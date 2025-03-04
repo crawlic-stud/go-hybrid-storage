@@ -13,8 +13,7 @@ import (
 )
 
 type AppConfig struct {
-	MaxFileSize    int64
-	MaxChunkSizeMb int
+	MaxChunkSize int64
 }
 
 type App struct {
@@ -37,8 +36,7 @@ func (app *App) UploadFileHandler(writer http.ResponseWriter, request *http.Requ
 		writer,
 		request,
 		fileId,
-		app.Config.MaxFileSize,
-		app.Config.MaxChunkSizeMb,
+		app.Config.MaxChunkSize,
 	)
 	if err != nil {
 		handleBackendError(writer, err)
@@ -145,8 +143,7 @@ func (app *App) UpdateFileHandler(writer http.ResponseWriter, request *http.Requ
 			writer,
 			request,
 			fileId,
-			app.Config.MaxFileSize,
-			app.Config.MaxChunkSizeMb,
+			app.Config.MaxChunkSize,
 		)
 		if err != nil {
 			handleBackendError(writer, err)

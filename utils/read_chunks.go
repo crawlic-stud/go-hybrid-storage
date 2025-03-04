@@ -20,13 +20,13 @@ type ChunkResult struct {
 	JsonData      []byte
 }
 
-func ReadFileInChunks(writer http.ResponseWriter, request *http.Request, fileId string, maxFileSize int64, maxChunkSizeMb int) (ChunkResult, error) {
-	request.Body = http.MaxBytesReader(writer, request.Body, maxFileSize)
+func ReadFileInChunks(writer http.ResponseWriter, request *http.Request, fileId string, maxChunkSize int64) (ChunkResult, error) {
+	request.Body = http.MaxBytesReader(writer, request.Body, maxChunkSize)
 
-	err := request.ParseMultipartForm(maxFileSize)
+	err := request.ParseMultipartForm(maxChunkSize)
 	if err != nil {
 		log.Printf("Error parsing multipart form: %v", err)
-		return ChunkResult{}, fmt.Errorf("file chunk is too large, limit is %v MB", maxChunkSizeMb)
+		return ChunkResult{}, fmt.Errorf("file chunk is too large, limit is %v MB", maxChunkSize/(1024*1024))
 	}
 
 	fileChunk, _, err := request.FormFile("file")
