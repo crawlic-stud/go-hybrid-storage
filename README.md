@@ -3,7 +3,10 @@
 ## Запуск:
 
 ```sh
-go run main.go
+go run main.go          # хранение в файловой системе
+go run main.go sqlite   # хранение в SQLite
+go run main.go postgres # хранение в PostgreSQL
+go run main.go mongo    # хранение в MongoDB
 ```
 
 ## Запуск тестов:
