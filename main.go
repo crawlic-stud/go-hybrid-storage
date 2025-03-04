@@ -6,6 +6,7 @@ import (
 	fileHandlers "hybrid-storage/handlers/backends"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/rs/cors"
@@ -35,23 +36,54 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func determineBackendFromArgs(args []string) fileHandlers.FileServerBackend {
+	var backend fileHandlers.FileServerBackend
+	if len(args) > 1 {
+		switch args[1] {
+		case "sqlite":
+			sqliteBackend, err := fileHandlers.NewSQLiteBackend("test.db")
+			if err != nil {
+				panic(err)
+			}
+			log.Println("Connected to SQLite")
+			backend = sqliteBackend
+		case "postgres":
+			postgresBackend, err := fileHandlers.NewPostgresBackend("localhost", 5432, "postgres", "password", "postgres", "disable")
+			if err != nil {
+				panic(err)
+			}
+			log.Println("Connected to Postgres")
+			backend = postgresBackend
+		case "mongodb", "mongo":
+			mongoDbBackend, err := fileHandlers.NewMongoDBBackend("mongodb://localhost:27017", "test")
+			if err != nil {
+				panic(err)
+			}
+			log.Println("Connected to MongoDB")
+			backend = mongoDbBackend
+		default:
+			log.Println("Unknown backend specified, defaulting to filesystem")
+			backend = fileHandlers.FileSystemBackend{}
+		}
+	} else {
+		log.Println("No backend specified, defaulting to filesystem")
+		backend = fileHandlers.FileSystemBackend{}
+	}
+	return backend
+}
+
 func main() {
 	portServe := ":8008"
 	fmt.Println("Starting server on http://localhost" + portServe)
 
-	handler := http.NewServeMux()
+	backend := determineBackendFromArgs(os.Args)
 
+	// default is filesystem
+	handler := http.NewServeMux()
 	handler.HandleFunc("GET /", handlers.Root)
 
 	// handlers for files
-	// filesystemBackend := fileHandlers.FileSystemBackend{}
-	// sqlBackend, err := fileHandlers.NewSQLiteBackend("test.db")
-	// sqlBackend, err := fileHandlers.NewPostgresBackend("localhost", 5432, "postgres", "password", "postgres", "disable")
-	mongoDbBackend, err := fileHandlers.NewMongoDBBackend("mongodb://localhost:27017", "test")
-	if err != nil {
-		panic(err)
-	}
-	app := handlers.App{Backend: mongoDbBackend, Config: handlers.AppConfig{MaxChunkSize: 5 * 1024 * 1024}}
+	app := handlers.App{Backend: backend, Config: handlers.AppConfig{MaxChunkSize: 5 * 1024 * 1024}}
 	handler.HandleFunc("POST /files", app.UploadFileHandler)
 	handler.HandleFunc("GET /files", app.GetAllFilesHandler)
 	handler.HandleFunc("GET /files/{id}", app.GetFileHandler)
