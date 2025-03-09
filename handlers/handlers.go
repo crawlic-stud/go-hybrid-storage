@@ -6,6 +6,7 @@ import (
 	"hybrid-storage/models"
 	"hybrid-storage/utils"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -24,8 +25,10 @@ type App struct {
 func handleBackendError(writer http.ResponseWriter, err error) {
 	backendErr, ok := err.(*backends.FileServerError)
 	if ok {
+		log.Println("Known backend error:", backendErr.Detail)
 		utils.WriteResponseStatusCode(models.Error{Detail: backendErr.Detail}, backendErr.Code, writer)
 	} else {
+		log.Println("Unknown backend error:", err.Error())
 		utils.WriteResponseStatusCode(models.Error{Detail: err.Error()}, http.StatusInternalServerError, writer)
 	}
 }
