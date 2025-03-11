@@ -17,7 +17,6 @@ execute() {
 run_test() {
   local test_name="$1"
   local backend="$2"
-  # local cmd="k6 run load_tests/scripts/${test_name}.js --out json=load_tests/results/json/${test_name}_${backend}.json"
   local cmd="k6 run load_tests/scripts/${test_name}.js --out csv=load_tests/results/csv/${test_name}_${backend}.csv"
   execute "$cmd"
   return $?
@@ -32,10 +31,11 @@ run_tests_suite() {
     exit 1
   fi
 
-  # Build and run project
-  tests=("upload_one_chunk")
+  tests=("upload_small_chunk")
   for test in "${tests[@]}"; do
     run_test "$test" "$backend" || exit 1
+    echo "Sleeping before next test..."
+    sleep 15
   done
 
   # Cleanup if backend == fs
