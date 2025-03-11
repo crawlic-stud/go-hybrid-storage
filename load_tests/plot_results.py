@@ -1,5 +1,7 @@
 """Taken from: https://github.com/topnax/k6-results-visualization"""
 
+import csv
+from functools import lru_cache
 from pathlib import Path
 from dateutil import parser
 import matplotlib
@@ -27,16 +29,17 @@ def round_minutes(date_time_object):
     return new_date_time.replace(second=0)
 
 
+@lru_cache
 def load_data(file_name):
     data = {}
     with open(file_name, "r") as f:
-        for line in f.readlines():
-            line_data = json.loads(line)
-            if line_data["type"] == "Point":
-                metric = line_data["metric"]
-                metric_data = data.get(metric, [])
-                metric_data.append((line_data["data"]["value"], parser.parse(line_data["data"]["time"])))
-                data[metric] = metric_data
+        reader = csv.DictReader(f)
+        for line_data in reader:
+            metric = line_data["metric_name"]
+            metric_data = data.get(metric, [])
+            dt = datetime.datetime.fromtimestamp(float(line_data["timestamp"]))
+            metric_data.append((float(line_data["metric_value"]), dt))
+            data[metric] = metric_data
     return data
 
 
@@ -109,7 +112,9 @@ def display_chart(file_name: Path, metric_data_avg, metric_data_max, vus_data, w
     # show the chart
     plt.title("k6 load test results chart")
 
-    plt.savefig(file_name.parent / "plots" / file_name.name.replace(".json", ".png"))
+    plots_path = Path.cwd() / "load_tests" / "results" / "plots" / watched_metric
+    plots_path.mkdir(parents=True, exist_ok=True)
+    plt.savefig(plots_path / file_name.name.replace(".csv", ".png"), dpi=300)
 
 
 def process_file(file_name, watched_metric):
@@ -137,7 +142,8 @@ def process_file(file_name, watched_metric):
 
 
 if __name__ == "__main__":
-    path = Path.cwd() / "load_tests" / "results"
-    files = path.glob("*.json")
+    path = Path.cwd() / "load_tests" / "results" / "csv"
+    files = path.glob("*.csv")
     for file in files:
-        process_file(file, "http_req_duration")
+        for metric in ("http_req_waiting", "http_req_duration", "http_req_failed"):
+            process_file(file, metric)

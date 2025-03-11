@@ -2,4 +2,4 @@ files
 test.db
 venv
 __pycache__
-load_tests/results/json
+load_tests/results/csv
