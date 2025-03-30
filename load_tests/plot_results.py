@@ -142,8 +142,9 @@ def process_file(file_name, watched_metric):
 
 
 if __name__ == "__main__":
+    back_postfix = sys.argv[1] if len(sys.argv) > 1 else ""
     path = Path.cwd() / "load_tests" / "results" / "csv"
-    files = path.glob("*.csv")
+    files = path.glob(f"*{back_postfix}.csv")
     for file in files:
         for metric in ("http_req_waiting", "http_req_duration", "http_req_failed"):
             process_file(file, metric)

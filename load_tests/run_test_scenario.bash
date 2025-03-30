@@ -25,18 +25,16 @@ run_test() {
 # Function to run the test suite for a given backend
 run_tests_suite() {
   local backend="$1"
+  local test="$2"
 
   if ! [[ "$backend" =~ ^(sqlite|postgres|mongo|fs)$ ]]; then
     echo "Unknown backend: $backend"
     exit 1
   fi
-
-  tests=("upload_small_chunk")
-  for test in "${tests[@]}"; do
-    run_test "$test" "$backend" || exit 1
-    echo "Sleeping before next test..."
-    sleep 15
-  done
+  
+  run_test "$test" "$backend" || exit 1
+  echo "Sleeping before cleanup..."
+  sleep 5
 
   # Cleanup if backend == fs
   if [ "$backend" == "fs" ]; then
@@ -47,7 +45,8 @@ run_tests_suite() {
 
 # Main script
 backend=("$1")
+test=("$2")
 
-echo "Running tests for backend: $backend"
-run_tests_suite "$backend"
+echo "Running test "$test" for backend: $backend"
+run_tests_suite "$backend" "$test"
 echo "================ backend $backend done! ================"

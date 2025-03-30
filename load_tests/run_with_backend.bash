@@ -13,10 +13,12 @@ run_backend() {
     go build & ./hybrid-storage "$argument"
 }
 
+test="$2"
+
 # Function to run the tests
 run_tests() {
     echo "Running tests..."
-    bash load_tests/run_test_scenario.bash "$argument"
+    bash load_tests/run_test_scenario.bash "$argument" "$test"
     echo "Tests finished."
 }
 

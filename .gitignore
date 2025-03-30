@@ -1,5 +1,6 @@
 files
-test.db*
+test.db
+test.db-journal
 venv
 __pycache__
 load_tests/results/csv

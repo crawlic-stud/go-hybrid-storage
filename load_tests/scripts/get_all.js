@@ -1,16 +1,76 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
 
-const config = JSON.parse(open("../static/config.json"));
-
 export let options = {
-  duration: "1m",
-  vus: 100,
+  setupTimeout: "5m",
+  stages: [
+    { duration: "1m", target: 1000 },
+    { duration: "1m", target: 1000 },
+  ],
+  thresholds: {
+    http_req_duration: [
+      {
+        threshold: "p(95)<1000",
+        abortOnFail: true,
+        delayAbortEval: "10s",
+      },
+    ],
+    http_req_failed: [
+      {
+        threshold: "rate<0.05",
+        abortOnFail: true,
+        delayAbortEval: "10s",
+      },
+    ],
+  },
 };
 
+const smallImage = "small_image.jpg";
+const smallFormData = {
+  file: http.file(open("../static/" + smallImage, "b"), smallImage),
+  fileId: null,
+  chunkNumber: 1,
+  totalChunks: 1,
+  filename: smallImage,
+};
+
+const largeImage = "large_image.jpg";
+const largeFormData = {
+  file: http.file(open("../static/" + largeImage, "b"), largeImage),
+  fileId: null,
+  chunkNumber: 1,
+  totalChunks: 1,
+  filename: largeImage,
+};
+
+function randChoice(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+export function setup() {
+  const fileIds = [];
+  var smallInserted = 0;
+  var largeInserted = 0;
+  // create many files firstly
+  for (let i = 0; i <= 100; i++) {
+    var randImage = randChoice([smallFormData, largeFormData]);
+    if (randImage == smallFormData) {
+      smallInserted++;
+    } else {
+      largeInserted++;
+    }
+    var res = http.post("http://localhost:8008/files", randImage);
+    fileIds.push(res.json().fileId);
+    sleep(0.1);
+  }
+  console.log(
+    `[!] INSERTED ${smallInserted} small and ${largeInserted} large files [!]`
+  );
+  return { fileIds: fileIds };
+}
+
 export default function () {
-  let randomPage = Math.floor(Math.random() * 100);
-  let res = http.get(config.host + "/files?page=" + randomPage);
+  let res = http.get("http://localhost:8008/files?page=1&pageSize=100");
   check(res, {
     "status was 200": (r) => r.status === 200,
     "response time < 200ms": (r) => r.timings.duration < 200,

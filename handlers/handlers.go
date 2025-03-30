@@ -22,6 +22,8 @@ type App struct {
 	Config  AppConfig
 }
 
+const maxFilesPerPage = 100
+
 func handleBackendError(writer http.ResponseWriter, err error) {
 	backendErr, ok := err.(*backends.FileServerError)
 	if ok {
@@ -115,7 +117,7 @@ func (app *App) GetAllFilesHandler(writer http.ResponseWriter, request *http.Req
 	page := request.URL.Query().Get("page")
 	pageInt := convertToIntWithDefaultMax(page, 1, 0)
 	pageSize := request.URL.Query().Get("pageSize")
-	pageSizeInt := convertToIntWithDefaultMax(pageSize, 0, 100)
+	pageSizeInt := convertToIntWithDefaultMax(pageSize, 0, maxFilesPerPage)
 	result, err := app.Backend.GetAllFiles(pageInt, pageSizeInt)
 	if err != nil {
 		handleBackendError(writer, err)
