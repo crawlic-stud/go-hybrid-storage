@@ -31,3 +31,16 @@ make test=... back=...
 > Тесты: `upload_large_chunk`, `upload_small_chunk`, `get_random_file`
 
 > Бэкенды: `fs`, `sqlite`, `postgres`, `mongo`
+
+## Структура бэкендов
+
+```sh
+├── handlers
+│   ├── backends                    # модуль бэкендов, реализующих операции с файлами
+│   │   ├── filesystem_backend.go   # реализация бэкенда файловой системы
+│   │   ├── interface.go            # общий интерфейс для всех бэкендов
+│   │   ├── mongodb_backend.go      # реализация бэкенда MongoDB
+│   │   └── sql_backend.go          # реализация бэкенда SQL
+│   ├── handlers.go                 # хендлеры для взаимодействия API с конкретным бэкендом
+│   └── root.go                     # основной хендлер - для фронтенда
+```

@@ -102,8 +102,7 @@ func (b *MongoDBBackend) UploadFile(
 
 func (b *MongoDBBackend) GetFile(fileId string) (GetFileResult, error) {
 	var metadata models.FileMetadata
-	err := b.metadata.FindOne(context.Background(), bson.M{"fileId": fileId}).
-		Decode(&metadata)
+	err := b.metadata.FindOne(context.Background(), bson.M{"fileId": fileId}).Decode(&metadata)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return GetFileResult{}, &FileServerError{

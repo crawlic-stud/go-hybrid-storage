@@ -5,7 +5,7 @@ export let options = {
   setupTimeout: "5m",
   stages: [
     { duration: "1m", target: 1000 },
-    { duration: "1m", target: 1000 },
+    { duration: "2m", target: 2000 },
   ],
   thresholds: {
     http_req_duration: [

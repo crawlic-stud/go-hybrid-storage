@@ -124,10 +124,7 @@ func NewPostgresBackend(
 func (b *SQLBackend) UploadFile(
 	chunk utils.ChunkResult,
 	fileId string,
-) (
-	FileServerResult,
-	error,
-) {
+) (FileServerResult, error) {
 	now := time.Now().Unix()
 
 	if chunk.ChunkNumber == 1 {

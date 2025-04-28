@@ -103,14 +103,6 @@ func main() {
 	loggingHandler := LoggingMiddleware(handler)
 	corsHandler := corsConfig.Handler(loggingHandler)
 
-	// client := &http.Client{
-	// 	Timeout: 10 * time.Second,
-	// 	Transport: &http.Transport{
-	// 		MaxIdleConns:        100,
-	// 		MaxIdleConnsPerHost: 100,
-	// 	},
-	// }
-
 	http.ListenAndServe(
 		portServe,
 		corsHandler,

@@ -1,0 +1,13 @@
+,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+Среднее время запроса,1.98,243.16,30.55,1052.52,1.19,50.68,19.19,3.07,295.87,75.92,110.87,8.01,3.48,89.73,81.37,266.14
+Максимальное время запроса,88.99,1185.14,3807.24,7654.14,153.2,387.07,589.22,150.68,3723.95,1165.54,4872.51,996.32,131.48,2464.18,1741.57,3773.37
+Проверка (response time < 200ms),1.0,,,,1.0,,,1.0,,,0.8092529598869058,,,,,
+Проверка (status was 200),1.0,0.8901408450704226,1.0,0.9444444444444444,1.0,1.0,1.0,1.0,1.0,0.9277055322900595,0.9399960240325146,1.0,1.0,1.0,0.9485708019592075,1.0
+Запросы дольше 1000ms < 5%,True,True,True,False,True,True,True,True,False,True,True,True,True,True,True,False
+Процент проваленных запросов < 5%,True,False,True,False,True,True,True,True,True,False,False,True,True,True,False,True
+Отправлено данных,236.7 МБ,3.2 ГБ,242.8 МБ,154.7 МБ,269.0 МБ,38.5 ГБ,25.2 ГБ,232.3 МБ,981.4 МБ,2.6 ГБ,276.2 МБ,269.2 МБ,234.7 МБ,23.8 ГБ,257.2 МБ,18.6 ГБ
+Получено данных,2.8 ГБ,119.0 КБ,96.0 ГБ,63.2 КБ,2.5 ГБ,1.4 МБ,14.5 МБ,2.8 ГБ,33.1 КБ,1.5 МБ,1.1 ГБ,110.5 ГБ,96.5 ГБ,13.6 МБ,31.3 ГБ,685.0 КБ
+RPS,1102,22,677,34,716,71,739,1089,11,259,662,713,736,674,404,49
+filename,get_all_fs.csv,upload_large_chunk_postgres.csv,get_random_file_sqlite.csv,upload_small_chunk_sqlite.csv,get_all_sqlite.csv,upload_large_chunk_fs.csv,upload_small_chunk_fs.csv,get_all_mongo.csv,upload_large_chunk_sqlite.csv,upload_small_chunk_postgres.csv,get_all_postgres.csv,get_random_file_mongo.csv,get_random_file_fs.csv,upload_small_chunk_mongo.csv,get_random_file_postgres.csv,upload_large_chunk_mongo.csv
+Проверка (response time < 1000ms),,0.9887323943661972,,0.6851851851851852,,1.0,1.0,,0.9343434343434344,0.9917346264051136,,,,0.992600043106545,,0.9383227693807898
+Проверка (response time < 500ms),,,0.990127485737093,,,,,,,,,0.9998988991237924,1.0,,0.9827107244681629,
